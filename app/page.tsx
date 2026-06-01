@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { createSkill } from "@/lib/skill-storage";
 
 import { OnboardingForm } from "@/components/onboarding-form";
 import { MusashiBackground } from "@/components/ui/musashi-background";
@@ -85,7 +86,8 @@ export default function HomePage() {
 
         <OnboardingForm
           onSubmit={async (payload) => {
-            const { error } = await supabase
+            // 1. Create profile row
+            const { error: profileError } = await supabase
               .from("profiles")
               .insert({
                 id: user.id,
@@ -97,12 +99,25 @@ export default function HomePage() {
                 target_goal: payload.targetGoal,
               });
 
-            if (error) {
-              console.error(error);
-              alert(error.message);
+            if (profileError) {
+              console.error(profileError);
+              alert(profileError.message);
               return;
             }
 
+            // 2. Create first skill row
+            const { error: skillError } = await createSkill({
+              name: payload.skillName,
+              targetGoal: payload.targetGoal,
+            });
+
+            if (skillError) {
+              console.error(skillError);
+              alert(skillError);
+              return;
+            }
+
+            // 3. Both succeeded → enter the app
             router.push("/dashboard");
           }}
         />
