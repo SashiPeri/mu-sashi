@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { loadSkills } from "@/lib/skill-storage";
+import { loadSkills, createSkill } from "@/lib/skill-storage";
 import type { Skill } from "@/types/skill";
 
 function ProgressBar({
@@ -38,11 +38,15 @@ export default function DashboardPage() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Add skill form state
+  const [showForm, setShowForm] = useState(false);
+  const [newSkillName, setNewSkillName] = useState("");
+  const [newTargetGoal, setNewTargetGoal] = useState("10000");
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
 
-      // 1. Get logged-in user
       const { data: userData } = await supabase.auth.getUser();
       const user = userData?.user;
 
@@ -51,20 +55,17 @@ export default function DashboardPage() {
         return;
       }
 
-      // 2. Fetch profile — dashboard only reads, never creates
       const { data: profile } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .maybeSingle();
 
-      // 3. No profile means onboarding was never completed → send them back
       if (!profile) {
         router.push("/");
         return;
       }
 
-      // 4. Fetch skills
       const { skills: userSkills } = await loadSkills();
       setSkills(userSkills);
 
@@ -75,15 +76,35 @@ export default function DashboardPage() {
     init();
   }, [router]);
 
-  // SAFE FALLBACKS (never crash UI)
+  const handleCreate = async () => {
+    const { skill, error } = await createSkill({
+      name: newSkillName,
+      targetGoal: Number(newTargetGoal),
+    });
+    if (error || !skill) {
+      alert(error);
+      return;
+    }
+    const { skills: freshSkills } = await loadSkills();
+    setSkills(freshSkills);
+    setNewSkillName("");
+    setNewTargetGoal("10000");
+    setShowForm(false);
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    setNewSkillName("");
+    setNewTargetGoal("10000");
+  };
+
+  // SAFE FALLBACKS
   const displayName = data?.display_name ?? "Welcome";
   const username = data?.username ?? "user";
-
   const current_iteration = data?.current_iteration ?? 0;
   const target_goal = data?.target_goal ?? 1;
   const reps = data?.reps ?? 0;
   const streak = data?.streak ?? 0;
-
   const progress = target_goal > 0 ? current_iteration / target_goal : 0;
   const clampedProgress = Math.min(progress, 1);
 
@@ -120,10 +141,59 @@ export default function DashboardPage() {
         {/* SKILLS */}
         {skills.length > 0 && (
           <section className="space-y-3">
+
+            {/* SECTION HEADER */}
             <div className="flex items-center justify-between">
               <h2 className="text-xs uppercase tracking-wide text-zinc-500">Skills</h2>
-              <button className="text-xs text-zinc-400 border border-zinc-700 rounded-lg px-3 py-1 hover:border-zinc-500 hover:text-zinc-200 transition-colors">+ Add Skill</button>
+              <button
+                onClick={() => setShowForm(true)}
+                className="text-xs text-zinc-400 border border-zinc-700 rounded-lg px-3 py-1 hover:border-zinc-500 hover:text-zinc-200 transition-colors"
+              >
+                + Add Skill
+              </button>
             </div>
+
+            {/* ADD SKILL FORM */}
+            {showForm && (
+              <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-4 space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs uppercase tracking-wide text-zinc-500">
+                    Skill Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newSkillName}
+                    onChange={(e) => setNewSkillName(e.target.value)}
+                    placeholder="e.g. Chess endgames"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs uppercase tracking-wide text-zinc-500">
+                    Target Goal
+                  </label>
+                  <input
+                    type="number"
+                    value={newTargetGoal}
+                    onChange={(e) => setNewTargetGoal(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleCreate} className="flex-1 bg-zinc-100 text-zinc-900 rounded-lg px-3 py-2 text-sm font-medium hover:bg-white transition-colors">
+                    Create
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    className="flex-1 border border-zinc-700 text-zinc-400 rounded-lg px-3 py-2 text-sm hover:border-zinc-500 hover:text-zinc-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* SKILL CARDS */}
             <div className="space-y-3">
               {skills.map((skill) => {
                 const pct = skill.targetGoal > 0
@@ -151,6 +221,7 @@ export default function DashboardPage() {
                 );
               })}
             </div>
+
           </section>
         )}
 
