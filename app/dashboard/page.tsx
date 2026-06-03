@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { loadSkills, createSkill } from "@/lib/skill-storage";
@@ -107,6 +108,7 @@ export default function DashboardPage() {
   const streak = data?.streak ?? 0;
   const progress = target_goal > 0 ? current_iteration / target_goal : 0;
   const clampedProgress = Math.min(progress, 1);
+  const maxAllowedSkills = 3 + skills.filter(s => s.currentIteration >= 6000).length;
 
   if (loading) {
     return (
@@ -145,12 +147,18 @@ export default function DashboardPage() {
             {/* SECTION HEADER */}
             <div className="flex items-center justify-between">
               <h2 className="text-xs uppercase tracking-wide text-zinc-500">Skills</h2>
-              <button
-                onClick={() => setShowForm(true)}
-                className="text-xs text-zinc-400 border border-zinc-700 rounded-lg px-3 py-1 hover:border-zinc-500 hover:text-zinc-200 transition-colors"
-              >
-                + Add Skill
-              </button>
+              {skills.length < maxAllowedSkills ? (
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="text-xs text-zinc-400 border border-zinc-700 rounded-lg px-3 py-1 hover:border-zinc-500 hover:text-zinc-200 transition-colors"
+                >
+                  + Add Skill
+                </button>
+              ) : (
+                <p className="text-xs text-zinc-500">
+                  Skill limit reached. Reach 6000 reps on a skill to unlock another slot.
+                </p>
+              )}
             </div>
 
             {/* ADD SKILL FORM */}
@@ -200,9 +208,9 @@ export default function DashboardPage() {
                   ? Math.min(100, Math.round((skill.currentIteration / skill.targetGoal) * 100))
                   : 0;
                 return (
+                  <Link key={skill.id} href={`/skills/${skill.id}`}>
                   <article
-                    key={skill.id}
-                    className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-3"
+                    className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-3 cursor-pointer hover:border-zinc-600 transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <p className="font-medium text-zinc-100">{skill.name}</p>
@@ -218,6 +226,7 @@ export default function DashboardPage() {
                       {skill.currentIteration.toLocaleString()} / {skill.targetGoal.toLocaleString()} reps
                     </p>
                   </article>
+                  </Link>
                 );
               })}
             </div>
