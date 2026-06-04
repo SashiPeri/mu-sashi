@@ -4,11 +4,14 @@ import { useState } from "react";
 import { saveReview } from "@/lib/skill-storage";
 import type { ReviewPeriod } from "@/types/skill";
 
-const PERIOD_CONFIG: Record
+const PERIOD_CONFIG: Record<
   ReviewPeriod,
-  { label: string; noun: string; placeholder: string }
-> = {
-  weekly: {
+  {
+    label: string;
+    noun: string;
+    placeholder: string;
+  }
+> = {  weekly: {
     label: "week",
     noun: "Week",
     placeholder: "What worked? What didn't? What will you improve next week?",
@@ -79,7 +82,9 @@ export function ReviewCard({ skillId, period, onSaved }: ReviewCardProps) {
           Your {config.label} has ended. Would you like to review your progress?
         </p>
         <p className="text-xs text-zinc-500 leading-relaxed">
-          Reflection is optional. Musashi simply keeps the mirror clean.
+        Reflection is optional.
+        Musashi only reminds you. 
+        Mastery is your decision.
         </p>
       </div>
 

@@ -1,3 +1,7 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// DB row — mirrors the skills table columns exactly (snake_case)
+// ─────────────────────────────────────────────────────────────────────────────
+
 export type SkillRow = {
   id: string;
   user_id: string;
@@ -5,24 +9,23 @@ export type SkillRow = {
   current_iteration: number;
   target_goal: number;
   created_at: string;
-
-  // Legacy numeric goals (keep for backwards compatibility)
-  weekly_goal?: number | null;
-  monthly_goal?: number | null;
-  quarterly_goal?: number | null;
-  yearly_goal?: number | null;
-
-  // Narrative goals
-  weekly_goal_text?: string | null;
-  monthly_goal_text?: string | null;
-  quarterly_goal_text?: string | null;
-  yearly_goal_text?: string | null;
-
-  // Weekly review system
-  weekly_review?: string | null;
-  carry_weekly_goal?: boolean | null;
-  last_review_date?: string | null;
+  // reminder flags
+  enable_weekly_reminder: boolean;
+  enable_monthly_reminder: boolean;
+  enable_quarterly_reminder: boolean;
+  enable_yearly_reminder: boolean;
+  // last review timestamps
+  last_weekly_review_at: string | null;
+  last_monthly_review_at: string | null;
+  last_quarterly_review_at: string | null;
+  last_yearly_review_at: string | null;
+  // carry-forward
+  carry_weekly_goal: boolean;
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App-layer type — camelCase, used everywhere outside lib/skill-storage.ts
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type Skill = {
   id: string;
@@ -31,24 +34,29 @@ export type Skill = {
   currentIteration: number;
   targetGoal: number;
   createdAt: string;
-
-  // Legacy numeric goals
-  weeklyGoal?: number;
-  monthlyGoal?: number;
-  quarterlyGoal?: number;
-  yearlyGoal?: number;
-
-  // Narrative goals
-  weeklyGoalText?: string;
-  monthlyGoalText?: string;
-  quarterlyGoalText?: string;
-  yearlyGoalText?: string;
-
-  // Weekly review system
-  weeklyReview?: string;
-  carryWeeklyGoal?: boolean;
-  lastReviewDate?: string;
+  // reminder flags
+  enableWeeklyReminder: boolean;
+  enableMonthlyReminder: boolean;
+  enableQuarterlyReminder: boolean;
+  enableYearlyReminder: boolean;
+  // last review timestamps
+  lastWeeklyReviewAt: string | null;
+  lastMonthlyReviewAt: string | null;
+  lastQuarterlyReviewAt: string | null;
+  lastYearlyReviewAt: string | null;
+  // carry-forward
+  carryWeeklyGoal: boolean;
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Review period
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ReviewPeriod = "weekly" | "monthly" | "quarterly" | "yearly";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Conversion helper
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function skillFromRow(row: SkillRow): Skill {
   return {
@@ -58,47 +66,71 @@ export function skillFromRow(row: SkillRow): Skill {
     currentIteration: row.current_iteration,
     targetGoal: row.target_goal,
     createdAt: row.created_at,
-
-    // Legacy numeric goals
-    weeklyGoal: row.weekly_goal ?? 0,
-    monthlyGoal: row.monthly_goal ?? 0,
-    quarterlyGoal: row.quarterly_goal ?? 0,
-    yearlyGoal: row.yearly_goal ?? 0,
-
-    // Narrative goals
-    weeklyGoalText: row.weekly_goal_text ?? "",
-    monthlyGoalText: row.monthly_goal_text ?? "",
-    quarterlyGoalText: row.quarterly_goal_text ?? "",
-    yearlyGoalText: row.yearly_goal_text ?? "",
-
-    // Weekly review system
-    weeklyReview: row.weekly_review ?? "",
-    carryWeeklyGoal: row.carry_weekly_goal ?? true,
-    lastReviewDate: row.last_review_date ?? "",
+    enableWeeklyReminder: row.enable_weekly_reminder ?? true,
+    enableMonthlyReminder: row.enable_monthly_reminder ?? true,
+    enableQuarterlyReminder: row.enable_quarterly_reminder ?? true,
+    enableYearlyReminder: row.enable_yearly_reminder ?? true,
+    lastWeeklyReviewAt: row.last_weekly_review_at ?? null,
+    lastMonthlyReviewAt: row.last_monthly_review_at ?? null,
+    lastQuarterlyReviewAt: row.last_quarterly_review_at ?? null,
+    lastYearlyReviewAt: row.last_yearly_review_at ?? null,
+    carryWeeklyGoal: row.carry_weekly_goal ?? false,
   };
 }
 
-export function skillToRow(skill: Skill): Partial<SkillRow> {
-  return {
-    id: skill.id,
-    user_id: skill.userId,
-    name: skill.name,
-    current_iteration: skill.currentIteration,
-    target_goal: skill.targetGoal,
-    created_at: skill.createdAt,
+// ─────────────────────────────────────────────────────────────────────────────
+// Period boundary helpers
+// All use local time so the review prompt matches the user's lived experience.
+// ─────────────────────────────────────────────────────────────────────────────
 
-    weekly_goal: skill.weeklyGoal,
-    monthly_goal: skill.monthlyGoal,
-    quarterly_goal: skill.quarterlyGoal,
-    yearly_goal: skill.yearlyGoal,
+function startOfCurrentWeek(): Date {
+  const now = new Date();
+  const day = now.getDay(); // 0 = Sunday
+  const diff = now.getDate() - day;
+  return new Date(now.getFullYear(), now.getMonth(), diff, 0, 0, 0, 0);
+}
 
-    weekly_goal_text: skill.weeklyGoalText,
-    monthly_goal_text: skill.monthlyGoalText,
-    quarterly_goal_text: skill.quarterlyGoalText,
-    yearly_goal_text: skill.yearlyGoalText,
+function startOfCurrentMonth(): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+}
 
-    weekly_review: skill.weeklyReview,
-    carry_weekly_goal: skill.carryWeeklyGoal,
-    last_review_date: skill.lastReviewDate,
-  };
+function startOfCurrentQuarter(): Date {
+  const now = new Date();
+  const quarterMonth = Math.floor(now.getMonth() / 3) * 3;
+  return new Date(now.getFullYear(), quarterMonth, 1, 0, 0, 0, 0);
+}
+
+function startOfCurrentYear(): Date {
+  return new Date(new Date().getFullYear(), 0, 1, 0, 0, 0, 0);
+}
+
+function isBeforePeriodStart(ts: string | null, start: Date): boolean {
+  if (!ts) return true;
+  return new Date(ts) < start;
+}
+
+export function shouldShowReview(skill: Skill, period: ReviewPeriod): boolean {
+  switch (period) {
+    case "weekly":
+      return (
+        skill.enableWeeklyReminder &&
+        isBeforePeriodStart(skill.lastWeeklyReviewAt, startOfCurrentWeek())
+      );
+    case "monthly":
+      return (
+        skill.enableMonthlyReminder &&
+        isBeforePeriodStart(skill.lastMonthlyReviewAt, startOfCurrentMonth())
+      );
+    case "quarterly":
+      return (
+        skill.enableQuarterlyReminder &&
+        isBeforePeriodStart(skill.lastQuarterlyReviewAt, startOfCurrentQuarter())
+      );
+    case "yearly":
+      return (
+        skill.enableYearlyReminder &&
+        isBeforePeriodStart(skill.lastYearlyReviewAt, startOfCurrentYear())
+      );
+  }
 }
