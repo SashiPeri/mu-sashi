@@ -1,149 +1,104 @@
-"use client";
+import { supabase } from "@/lib/supabase";
+import { skillFromRow, type Skill, type SkillRow, type ReviewPeriod } from "@/types/skill";
 
-import { useState } from "react";
-import { saveReview } from "@/lib/skill-storage";
-import type { ReviewPeriod } from "@/types/skill";
+// ─────────────────────────────────────────────────────────────────────────────
+// loadSkills
+// ─────────────────────────────────────────────────────────────────────────────
 
-const PERIOD_CONFIG: Record
-  ReviewPeriod,
-  { label: string; noun: string; placeholder: string }
-> = {
-  weekly: {
-    label: "week",
-    noun: "Week",
-    placeholder: "What worked? What didn't? What will you improve next week?",
-  },
-  monthly: {
-    label: "month",
-    noun: "Month",
-    placeholder: "What outcomes happened this month? What should change next month?",
-  },
-  quarterly: {
-    label: "quarter",
-    noun: "Quarter",
-    placeholder: "How has your identity changed? What habits define you now?",
-  },
-  yearly: {
-    label: "year",
-    noun: "Year",
-    placeholder: "What did you become this year? What craft have you built?",
-  },
-};
+export async function loadSkills(): Promise<{
+  skills: Skill[];
+  error: string | null;
+}> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { skills: [], error: "Not authenticated." };
 
-type ReviewCardProps = {
+  const { data, error } = await supabase
+    .from("skills")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true });
+
+  if (error) return { skills: [], error: error.message };
+
+  return {
+    skills: (data as SkillRow[]).map(skillFromRow),
+    error: null,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createSkill
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function createSkill(payload: {
+  name: string;
+  targetGoal: number;
+}): Promise<{ skill: Skill | null; error: string | null }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { skill: null, error: "Not authenticated." };
+
+  const name = payload.name.trim();
+  if (!name) return { skill: null, error: "Skill name is required." };
+
+  const { data, error } = await supabase
+    .from("skills")
+    .insert({
+      user_id: user.id,
+      name,
+      target_goal: payload.targetGoal,
+      current_iteration: 0,
+    })
+    .select()
+    .single();
+
+  if (error) return { skill: null, error: error.message };
+
+  return { skill: skillFromRow(data as SkillRow), error: null };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// saveReview
+// Inserts into skill_reviews and updates last_*_review_at on skills.
+// For weekly reviews also persists carry_weekly_goal.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function saveReview(payload: {
   skillId: string;
   period: ReviewPeriod;
-  onSaved: () => void;
-};
+  review: string;
+  carryWeeklyGoal?: boolean;
+}): Promise<{ error: string | null }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
 
-export function ReviewCard({ skillId, period, onSaved }: ReviewCardProps) {
-  const config = PERIOD_CONFIG[period];
+  const now = new Date().toISOString();
+  const lastCol = `last_${payload.period}_review_at` as const;
 
-  const [dismissed, setDismissed] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [reviewText, setReviewText] = useState("");
-  const [carryGoal, setCarryGoal] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  if (dismissed) return null;
-
-  const handleSave = async () => {
-    if (!reviewText.trim()) return;
-    setSaving(true);
-    setSaveError(null);
-
-    const { error } = await saveReview({
-      skillId,
-      period,
-      review: reviewText,
-      carryWeeklyGoal: period === "weekly" ? carryGoal : undefined,
+  // 1. Insert the review row
+  const { error: insertError } = await supabase
+    .from("skill_reviews")
+    .insert({
+      skill_id: payload.skillId,
+      user_id: user.id,
+      period: payload.period,
+      review: payload.review.trim(),
     });
 
-    setSaving(false);
+  if (insertError) return { error: insertError.message };
 
-    if (error) {
-      setSaveError(error);
-      return;
-    }
+  // 2. Update timestamp (+ carry_weekly_goal if weekly)
+  const skillUpdate: Record<string, unknown> = { [lastCol]: now };
+  if (payload.period === "weekly" && payload.carryWeeklyGoal !== undefined) {
+    skillUpdate.carry_weekly_goal = payload.carryWeeklyGoal;
+  }
 
-    onSaved();
-  };
+  const { error: updateError } = await supabase
+    .from("skills")
+    .update(skillUpdate)
+    .eq("id", payload.skillId)
+    .eq("user_id", user.id);
 
-  return (
-    <article className="rounded-xl border border-zinc-700/60 bg-zinc-900/50 p-5 space-y-4">
+  if (updateError) return { error: updateError.message };
 
-      {/* PROMPT */}
-      <div className="space-y-1.5">
-        <p className="text-sm font-medium text-zinc-100">
-          Your {config.label} has ended. Would you like to review your progress?
-        </p>
-        <p className="text-xs text-zinc-500 leading-relaxed">
-          Reflection is optional. Musashi simply keeps the mirror clean.
-        </p>
-      </div>
-
-      {/* EXPANDED FORM */}
-      {expanded ? (
-        <div className="space-y-4">
-          <textarea
-            value={reviewText}
-            onChange={(e) => setReviewText(e.target.value)}
-            placeholder={config.placeholder}
-            rows={4}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-zinc-500 resize-none"
-          />
-
-          {period === "weekly" && (
-            <label className="flex items-center gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={carryGoal}
-                onChange={(e) => setCarryGoal(e.target.checked)}
-                className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-indigo-500"
-              />
-              <span className="text-xs text-zinc-400">
-                Carry this week's Action Goal into next week
-              </span>
-            </label>
-          )}
-
-          {saveError && (
-            <p className="text-xs text-rose-400">{saveError}</p>
-          )}
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              disabled={saving || !reviewText.trim()}
-              className="flex-1 bg-zinc-100 text-zinc-900 rounded-lg px-3 py-2 text-sm font-medium hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {saving ? "Saving…" : "Save Review"}
-            </button>
-            <button
-              onClick={() => setExpanded(false)}
-              className="flex-1 border border-zinc-700 text-zinc-400 rounded-lg px-3 py-2 text-sm hover:border-zinc-500 hover:text-zinc-200 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-2">
-          <button
-            onClick={() => setExpanded(true)}
-            className="flex-1 bg-zinc-100 text-zinc-900 rounded-lg px-3 py-2 text-sm font-medium hover:bg-white transition-colors"
-          >
-            Review Now
-          </button>
-          <button
-            onClick={() => setDismissed(true)}
-            className="flex-1 border border-zinc-700 text-zinc-400 rounded-lg px-3 py-2 text-sm hover:border-zinc-500 hover:text-zinc-200 transition-colors"
-          >
-            Maybe Later
-          </button>
-        </div>
-      )}
-    </article>
-  );
+  return { error: null };
 }
