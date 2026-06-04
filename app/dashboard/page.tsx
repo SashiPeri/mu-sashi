@@ -141,7 +141,6 @@ export default function DashboardPage() {
         </div>
 
         {/* SKILLS */}
-        {skills.length > 0 && (
           <section className="space-y-3">
 
             {/* SECTION HEADER */}
@@ -201,6 +200,16 @@ export default function DashboardPage() {
               </div>
             )}
 
+            {/* EMPTY STATE */}
+            {skills.length === 0 && (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+                <p className="text-xs text-zinc-500">
+                  No skills yet. Create your first skill to begin.
+                </p>
+              </div>
+            
+            )}
+
             {/* SKILL CARDS */}
             <div className="space-y-3">
               {skills.map((skill) => {
@@ -232,8 +241,7 @@ export default function DashboardPage() {
             </div>
 
           </section>
-        )}
-
+        
       </div>
     </main>
   );

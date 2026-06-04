@@ -5,7 +5,9 @@ export async function loadSkills(): Promise<{
   skills: Skill[];
   error: string | null;
 }> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return { skills: [], error: "Not authenticated." };
@@ -31,7 +33,9 @@ export async function createSkill(payload: {
   name: string;
   targetGoal: number;
 }): Promise<{ skill: Skill | null; error: string | null }> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return { skill: null, error: "Not authenticated." };
@@ -42,6 +46,27 @@ export async function createSkill(payload: {
     return { skill: null, error: "Skill name is required." };
   }
 
+  // 🔒 RAILGUARD CHECK (DB ENFORCED LIMIT LOGIC)
+  const { data: allowed, error: rpcError } = await supabase.rpc(
+    "can_create_skill",
+    {
+      uid: user.id,
+    }
+  );
+
+  if (rpcError) {
+    return { skill: null, error: rpcError.message };
+  }
+
+  if (!allowed) {
+    return {
+      skill: null,
+      error:
+        "Skill limit reached. Unlock more slots by reaching 6000 reps on a skill.",
+    };
+  }
+
+  // 🧱 INSERT SKILL
   const { data, error } = await supabase
     .from("skills")
     .insert({
