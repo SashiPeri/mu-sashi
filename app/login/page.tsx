@@ -22,36 +22,76 @@ export default function LoginPage() {
     if (error) {
       setMessage(error.message);
     } else {
-      setMessage("Check your email for the login link!");
+      setMessage("Check your email for the login link.");
     }
 
     setLoading(false);
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white">
-      <div className="bg-gray-900 p-6 rounded-xl w-[350px] space-y-4">
-        <h1 className="text-xl font-bold">Login</h1>
+    <main className="min-h-screen flex items-center justify-center bg-[#050505] text-[#E7D6C2] px-6">
 
-        <input
-          className="w-full p-2 rounded bg-gray-800"
-          placeholder="Enter email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+      <div className="w-full max-w-sm space-y-8">
 
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-          className="w-full bg-indigo-500 p-2 rounded"
-        >
-          {loading ? "Sending..." : "Send login link"}
-        </button>
+        {/* HEADER */}
+        <div className="space-y-2 text-center">
+          <h1 className="text-2xl font-serif tracking-wide">
+            Musashi
+          </h1>
+          <p className="text-xs text-zinc-500 font-mono">
+            Enter the dojo
+          </p>
+        </div>
 
-        {message && (
-          <p className="text-sm text-gray-400">{message}</p>
-        )}
+        {/* FORM */}
+        <div className="space-y-4">
+
+          <input
+            className="
+              w-full px-4 py-3
+              bg-transparent
+              border border-white/10
+              text-sm
+              outline-none
+              focus:border-red-900/60
+              transition
+            "
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          <button
+            onClick={handleLogin}
+            disabled={loading}
+            className="
+              w-full py-3
+              bg-red-900/80
+              hover:bg-red-900
+              transition
+              text-sm
+              font-medium
+              text-white
+              tracking-wide
+            "
+          >
+            {loading ? "Sending link..." : "Send login link"}
+          </button>
+
+          {message && (
+            <p className="text-xs text-zinc-500 text-center">
+              {message}
+            </p>
+          )}
+
+        </div>
+
+        {/* FOOTER NOTE */}
+        <p className="text-[10px] text-zinc-600 text-center leading-relaxed">
+          A quiet system for deliberate practice.
+        </p>
+
       </div>
-    </div>
+    </main>
   );
 }

@@ -9,7 +9,7 @@ export type RepLogEntry = {
   id: string;
   skillId: string;
   note: string;
-  createdAt: string;
+  created_at: string;
 };
 
 export type MasterySkillEntry = {
@@ -18,7 +18,7 @@ export type MasterySkillEntry = {
   targetGoal: number;
   currentIteration: number;
   periodGoals: PeriodGoals;
-  createdAt: string;
+  created_at: string;
 };
 
 export type UserProfile = {

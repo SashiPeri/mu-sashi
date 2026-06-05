@@ -33,7 +33,7 @@ export type Skill = {
   name: string;
   currentIteration: number;
   targetGoal: number;
-  createdAt: string;
+  created_at: string;
   // reminder flags
   enableWeeklyReminder: boolean;
   enableMonthlyReminder: boolean;
@@ -65,7 +65,7 @@ export function skillFromRow(row: SkillRow): Skill {
     name: row.name,
     currentIteration: row.current_iteration,
     targetGoal: row.target_goal,
-    createdAt: row.created_at,
+    created_at: row.created_at,
     enableWeeklyReminder: row.enable_weekly_reminder ?? true,
     enableMonthlyReminder: row.enable_monthly_reminder ?? true,
     enableQuarterlyReminder: row.enable_quarterly_reminder ?? true,

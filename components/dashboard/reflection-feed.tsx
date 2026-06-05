@@ -25,7 +25,7 @@ export function ReflectionFeed({ logs }: ReflectionFeedProps) {
           </p>
 
           <p className="mt-2 text-[11px] font-mono tracking-wide text-[var(--muted)]">
-            {new Date(log.createdAt).toLocaleString()}
+            {new Date(log.created_at).toLocaleString()}
           </p>
 
           {index !== logs.slice(0, 8).length - 1 && (

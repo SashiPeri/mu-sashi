@@ -96,7 +96,7 @@ function migrateLegacyProfile(): UserProfile | null {
           targetGoal: clampTargetGoal(legacy.targetGoal ?? 10000),
           currentIteration: legacy.currentIteration ?? 0,
           periodGoals: { ...EMPTY_PERIOD_GOALS },
-          createdAt: new Date().toISOString(),
+          created_at: new Date().toISOString(),
         },
       ],
       repLogs: [],
@@ -160,7 +160,7 @@ export function completeOnboarding(payload: OnboardingPayload): UserProfile {
     targetGoal: clampTargetGoal(payload.targetGoal),
     currentIteration: 0,
     periodGoals: payload.periodGoals,
-    createdAt: new Date().toISOString(),
+    created_at: new Date().toISOString(),
   };
 
   const profile: UserProfile = {
@@ -214,7 +214,7 @@ export function logRep(params: {
       id: createRepLogId(),
       skillId: skill.id,
       note,
-      createdAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
     });
   }
 
@@ -258,7 +258,7 @@ export function addSkill(payload: {
     targetGoal: clampTargetGoal(payload.targetGoal),
     currentIteration: 0,
     periodGoals: payload.periodGoals,
-    createdAt: new Date().toISOString(),
+    created_at: new Date().toISOString(),
   };
 
   const updated = saveUserProfile({
