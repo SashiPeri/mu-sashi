@@ -1,26 +1,49 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #040404;
+  --fg: #E7D6C2;
+
+  --surface: #090909;
+  --surface-2: #101010;
+
+  --border: rgba(255, 255, 255, 0.06);
+
+  --accent: #B93131;
+
+  --muted: #756d66;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-serif), serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+:root {
+  --grid-empty: #0F0F0F;
+  --grid-border: rgba(255,255,255,0.04);
+}
+/* subtle selection */
+::selection {
+  background: rgba(185, 49, 49, 0.25);
+}
+
+/* ultra minimal divider system */
+hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+}
+
+/* remove all default button noise */
+button {
+  cursor: pointer;
 }

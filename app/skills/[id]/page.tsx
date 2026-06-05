@@ -5,8 +5,9 @@ import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { loadSkills, addRep } from "@/lib/skill-storage";
 import { shouldShowReview, type Skill, type ReviewPeriod } from "@/types/skill";
-import { GoalsModal } from "@/components/dashboard/goals-modal";
+import GoalsModal from "@/components/dashboard/goals-modal";
 import { ReviewModal } from "@/components/dashboard/review-modal";
+
 const PERIODS: ReviewPeriod[] = ["weekly", "monthly", "quarterly", "yearly"];
 const HOLD_DURATION = 2000;
 
@@ -259,7 +260,7 @@ export default function SkillDetailPage() {
               {[
                 { label: "Reps",   value: skill!.currentIteration.toLocaleString() },
                 { label: "Target", value: skill!.targetGoal.toLocaleString() },
-                
+                { label: "Left",   value: Math.max(0, skill!.targetGoal - skill!.currentIteration).toLocaleString() },
               ].map(({ label, value }) => (
                 <div key={label} className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-3 py-3 text-center">
                   <p className="text-[10px] text-zinc-600 uppercase tracking-widest">{label}</p>
@@ -383,13 +384,11 @@ export default function SkillDetailPage() {
         </div>
       </main>
 
-      {showGoals && skill && (
-        <GoalsModal
-          skill={skill}
-          onClose={() => setShowGoals(false)}
-          onSaved={fetchSkill}
-        />
-      )}
+      <GoalsModal
+        skill={skill!}
+        open={showGoals}
+        onClose={() => setShowGoals(false)}
+      />
       {activeReviewPeriod && (
         <ReviewModal
           key={activeReviewPeriod}

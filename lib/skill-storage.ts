@@ -1,10 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { skillFromRow, type Skill, type SkillRow, type ReviewPeriod } from "@/types/skill";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// loadSkills
-// ─────────────────────────────────────────────────────────────────────────────
-
 export async function loadSkills(): Promise<{
   skills: Skill[];
   error: string | null;
@@ -25,10 +21,6 @@ export async function loadSkills(): Promise<{
     error: null,
   };
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// createSkill
-// ─────────────────────────────────────────────────────────────────────────────
 
 export async function createSkill(payload: {
   name: string;
@@ -56,12 +48,6 @@ export async function createSkill(payload: {
   return { skill: skillFromRow(data as SkillRow), error: null };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// saveReview
-// Inserts into skill_reviews and updates last_*_review_at on skills.
-// For weekly reviews also persists carry_weekly_goal.
-// ─────────────────────────────────────────────────────────────────────────────
-
 export async function saveReview(payload: {
   skillId: string;
   period: ReviewPeriod;
@@ -74,7 +60,6 @@ export async function saveReview(payload: {
   const now = new Date().toISOString();
   const lastCol = `last_${payload.period}_review_at` as const;
 
-  // 1. Insert the review row
   const { error: insertError } = await supabase
     .from("skill_reviews")
     .insert({
@@ -86,7 +71,6 @@ export async function saveReview(payload: {
 
   if (insertError) return { error: insertError.message };
 
-  // 2. Update timestamp (+ carry_weekly_goal if weekly)
   const skillUpdate: Record<string, unknown> = { [lastCol]: now };
   if (payload.period === "weekly" && payload.carryWeeklyGoal !== undefined) {
     skillUpdate.carry_weekly_goal = payload.carryWeeklyGoal;
@@ -100,5 +84,55 @@ export async function saveReview(payload: {
 
   if (updateError) return { error: updateError.message };
 
+  return { error: null };
+}
+
+export async function addRep(
+  skillId: string
+): Promise<{ error: string | null }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { data: skill, error: fetchError } = await supabase
+    .from("skills")
+    .select("current_iteration")
+    .eq("id", skillId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (fetchError) return { error: fetchError.message };
+
+  const { error: updateError } = await supabase
+    .from("skills")
+    .update({ current_iteration: (skill.current_iteration as number) + 1 })
+    .eq("id", skillId)
+    .eq("user_id", user.id);
+
+  if (updateError) return { error: updateError.message };
+  return { error: null };
+}
+
+export async function saveGoals(payload: {
+  skillId: string;
+  weeklyGoalText: string;
+  monthlyGoalText: string;
+  quarterlyGoalText: string;
+  yearlyGoalText: string;
+}): Promise<{ error: string | null }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { error } = await supabase
+    .from("skills")
+    .update({
+      weekly_goal_text: payload.weeklyGoalText.trim(),
+      monthly_goal_text: payload.monthlyGoalText.trim(),
+      quarterly_goal_text: payload.quarterlyGoalText.trim(),
+      yearly_goal_text: payload.yearlyGoalText.trim(),
+    })
+    .eq("id", payload.skillId)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
   return { error: null };
 }

@@ -7,25 +7,32 @@ type ReflectionFeedProps = {
 export function ReflectionFeed({ logs }: ReflectionFeedProps) {
   if (logs.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-zinc-800 px-4 py-6 text-center text-sm text-zinc-500">
+      <p className="text-sm text-[var(--muted)] font-mono border border-white/5 px-4 py-6 text-center">
         Your reflections will appear here as you log reps.
       </p>
     );
   }
 
   return (
-    <ul className="space-y-3">
-      {logs.slice(0, 8).map((log) => (
-        <li
+    <div className="border-t border-white/5">
+      {logs.slice(0, 8).map((log, index) => (
+        <div
           key={log.id}
-          className="rounded-2xl border border-zinc-800/80 bg-zinc-950/60 px-4 py-3 text-sm text-zinc-300"
+          className="py-4"
         >
-          <p className="text-zinc-100">{log.note}</p>
-          <p className="mt-2 text-[11px] uppercase tracking-wider text-zinc-500">
+          <p className="text-[var(--fg)] text-sm leading-relaxed">
+            {log.note}
+          </p>
+
+          <p className="mt-2 text-[11px] font-mono tracking-wide text-[var(--muted)]">
             {new Date(log.createdAt).toLocaleString()}
           </p>
-        </li>
+
+          {index !== logs.slice(0, 8).length - 1 && (
+            <div className="mt-4 h-[1px] bg-white/5" />
+          )}
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }
