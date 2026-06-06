@@ -26,17 +26,16 @@ type GoalSkill = Skill & {
 type LocalGoals = Record<SectionKey, string>;
 
 const sections: Array<{
-  key: SectionKey;
-  mark: string;
-  title: string;
-  subtitle: string;
-  goalField: keyof GoalSkill;
-  reflectionField: keyof GoalSkill;
-  reviewedField: keyof Skill;
-  reminderField: keyof Skill;
-  delay: string;
-}> = [
-  {
+    key: SectionKey;
+    mark: string;
+    title: string;
+    subtitle: string;
+    goalField: keyof GoalSkill;
+    reflectionField: keyof GoalSkill;
+    reviewedField: keyof Skill;
+    reminderField: keyof Skill;
+    delay: string;
+  }> = [  {
     key: "weekly",
     mark: "W",
     title: "Weekly Action",
@@ -88,11 +87,9 @@ const emptyGoals: LocalGoals = {
   quarterly: "",
   yearly: "",
 };
-
 function goalsKey(skillId: string): string {
-  return `mu_sashi_goals_${skillId}`;
-}
-
+    return `mu_sashi_goals_${skillId}`;
+  }
 function readStoredGoals(skillId: string): Partial<LocalGoals> {
   if (typeof window === "undefined") return {};
 
@@ -133,6 +130,24 @@ export default function GoalsModal({ skill, open, onClose }: Props) {
   const [editingKey, setEditingKey] = useState<SectionKey | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
+  const [activeReminders, setActiveReminders] = useState<
+    Record<SectionKey, boolean>
+  >({
+    weekly: Boolean(skill.enableWeeklyReminder),
+    monthly: Boolean(skill.enableMonthlyReminder),
+    quarterly: Boolean(skill.enableQuarterlyReminder),
+    yearly: Boolean(skill.enableYearlyReminder),
+  });
+
+  useEffect(() => {
+    setActiveReminders({
+      weekly: Boolean(skill.enableWeeklyReminder),
+      monthly: Boolean(skill.enableMonthlyReminder),
+      quarterly: Boolean(skill.enableQuarterlyReminder),
+      yearly: Boolean(skill.enableYearlyReminder),
+    });
+  }, [skill]);
+
   useEffect(() => {
     if (!open) return;
 
@@ -157,7 +172,9 @@ export default function GoalsModal({ skill, open, onClose }: Props) {
   if (!open) return null;
 
   const goalSkill = skill as GoalSkill;
-  const enabledReminders = sections.filter((section) => Boolean(skill[section.reminderField]));
+  const enabledReminders = sections.filter(
+    (section) => activeReminders[section.key]
+  );
 
   const handleClose = () => {
     setVisible(false);
@@ -197,7 +214,7 @@ export default function GoalsModal({ skill, open, onClose }: Props) {
       onClick={handleClose}
     >
       <div
-        className={`relative my-6 w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#14110d]/80 p-5 shadow-2xl shadow-black/80 backdrop-blur-2xl transition-all duration-500 sm:p-8 lg:p-10 ${
+        className={`relative my-6 w-full max-w-7xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#14110d]/80 p-5 shadow-2xl shadow-black/80 backdrop-blur-2xl transition-all duration-500 sm:p-8 lg:p-10 ${
           visible ? "translate-y-0 scale-100 opacity-100" : "translate-y-6 scale-[0.98] opacity-0"
         }`}
         onClick={(event) => event.stopPropagation()}
@@ -413,41 +430,49 @@ export default function GoalsModal({ skill, open, onClose }: Props) {
             </p>
           ) : null}
 
-          <section className="rounded-2xl border border-white/10 bg-white/[0.035] p-5 shadow-inner shadow-black/20">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-stone-500">
-                  Reminders
-                </p>
-                <p className="text-sm leading-6 text-stone-300">
-                  {enabledReminders.length
-                    ? `${enabledReminders.length} cadence reminder${enabledReminders.length === 1 ? "" : "s"} active.`
-                    : "All cadence reminders are quiet."}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {sections.map((section) => {
-                  const enabled = Boolean(skill[section.reminderField]);
-
-                  return (
-                    <span
-                      key={section.key}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
-                        enabled
-                          ? "border-amber-100/25 bg-amber-100/10 text-amber-100"
-                          : "border-white/10 bg-black/20 text-stone-500"
-                      }`}
-                    >
-                      {section.mark} {enabled ? "On" : "Off"}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
+<section className="rounded-2xl border border-white/10 bg-white/[0.035] p-5 shadow-inner shadow-black/20">
+  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-1.5">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-stone-500">
+        Reminders
+      </p>
+      <p className="text-sm leading-6 text-stone-300">
+        {enabledReminders.length
+          ? `${enabledReminders.length} cadence reminder${enabledReminders.length === 1 ? "" : "s"} active.`
+          : "All cadence reminders are quiet."}
+      </p>
     </div>
-  );
+
+    <div className="flex gap-3">
+  {sections.map((section) => {
+    const enabled = activeReminders[section.key];
+
+    return (
+      <button
+        key={section.key}
+        type="button"
+        onClick={() =>
+          setActiveReminders((prev) => ({
+            ...prev,
+            [section.key]: !prev[section.key],
+          }))
+        }
+        className={`h-11 w-11 rounded-full border font-bold transition-all duration-300 cursor-pointer ${
+          enabled
+            ? "border-red-500/60 bg-red-500/20 text-red-300 shadow-[0_0_20px_rgba(220,38,38,.25)]"
+            : "border-zinc-700 bg-zinc-900 text-zinc-500 hover:border-zinc-500 hover:text-white"
+        }`}
+      >
+        {section.mark}
+      </button>
+    );
+  })}
+</div>
+  </div>
+</section>
+
+</div>
+</div>
+</div>
+);
 }
