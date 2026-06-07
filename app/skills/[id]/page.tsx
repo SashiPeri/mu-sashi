@@ -179,8 +179,7 @@ export default function SkillDetailPage() {
   return (
     <>
       <main className="min-h-screen bg-black text-white">
-        <div className="mx-auto w-full max-w-md px-4 py-8 space-y-8">
-
+      <div className="mx-auto w-full max-w-5xl px-6 py-8 space-y-8">
           {/* HEADER */}
           <div className="flex justify-between">
             <button
