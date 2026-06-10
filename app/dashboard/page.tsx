@@ -9,59 +9,56 @@ import type { Skill } from "@/types/skill";
 import type { RepLogEntry } from "@/types/mastery";
 
 function getDateKey(date: Date) {
-  const year  = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day   = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1); }
 function endOfMonth(d: Date)   { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
-function addMonths(d: Date, delta: number) { return new Date(d.getFullYear(), d.getMonth() + delta, 1); }
-function getMonthGrid(date: Date) {
+function addMonths(d: Date, n: number) { return new Date(d.getFullYear(), d.getMonth() + n, 1); }
+function getMonthGrid(date: Date): (string | null)[] {
   const start = startOfMonth(date);
   const end   = endOfMonth(date);
-  const cells: (string | null)[] = [];
-  for (let i = 0; i < start.getDay(); i++) cells.push(null);
+  const cells: (string | null)[] = Array(start.getDay()).fill(null);
   for (let d = 1; d <= end.getDate(); d++)
     cells.push(getDateKey(new Date(date.getFullYear(), date.getMonth(), d)));
   return cells;
 }
 
-function DojoMonthCalendar({ logs }: { logs: RepLogEntry[] }) {
+function DojoCalendar({ logs }: { logs: RepLogEntry[] }) {
   const [current, setCurrent] = useState(new Date());
-
   const activeDays = useMemo(
     () => new Set(logs.map((l) => getDateKey(new Date(l.created_at)))),
     [logs]
   );
-  const grid       = useMemo(() => getMonthGrid(current), [current]);
-  const monthLabel = current.toLocaleString("default", { month: "long", year: "numeric" });
+  const grid  = useMemo(() => getMonthGrid(current), [current]);
+  const label = current.toLocaleString("default", { month: "long", year: "numeric" });
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between px-0.5">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
         <button
           onClick={() => setCurrent((d) => addMonths(d, -1))}
-          className="text-zinc-700 hover:text-zinc-400 transition-colors text-xs leading-none pb-0.5"
           aria-label="Previous month"
-        >←</button>
-        <span className="text-[9px] uppercase tracking-[0.3em] text-zinc-600 font-light">
-          {monthLabel}
-        </span>
+          className="w-6 h-6 flex items-center justify-center text-zinc-600 hover:text-zinc-300 transition-colors duration-150"
+        >‹</button>
+        <span className="text-[10px] text-zinc-500 tracking-widest uppercase font-mono">{label}</span>
         <button
           onClick={() => setCurrent((d) => addMonths(d, 1))}
-          className="text-zinc-700 hover:text-zinc-400 transition-colors text-xs leading-none pb-0.5"
           aria-label="Next month"
-        >→</button>
+          className="w-6 h-6 flex items-center justify-center text-zinc-600 hover:text-zinc-300 transition-colors duration-150"
+        >›</button>
       </div>
 
       <div className="grid grid-cols-7">
-        {["Su","Mo","Tu","We","Th","Fr","Sa"].map((d, i) => (
-          <div key={i} className="text-center text-[8px] text-zinc-800 font-mono">{d}</div>
+        {["S","M","T","W","T","F","S"].map((d, i) => (
+          <div key={i} className="text-center text-[9px] text-zinc-800 font-mono">{d}</div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-[3px]">
+      <div className="grid grid-cols-7 gap-[2px]">
         {grid.map((day, i) => {
           if (!day) return <div key={i} />;
           const active = activeDays.has(day);
@@ -69,33 +66,21 @@ function DojoMonthCalendar({ logs }: { logs: RepLogEntry[] }) {
             <div
               key={day}
               title={day}
-              className={`aspect-square relative ${
+              className={[
+                "aspect-square",
                 active
-                  ? "bg-red-950/40 border border-red-900/30"
-                  : "bg-zinc-950 border border-zinc-900/60"
-              }`}
-            >
-              {active && (
-                <div className="absolute inset-[3px] bg-red-900/50" />
-              )}
-            </div>
+                  ? "bg-red-950 border border-red-900/50"
+                  : "bg-zinc-950 border border-zinc-900",
+              ].join(" ")}
+            />
           );
         })}
       </div>
 
       <div className="flex items-center gap-2 pt-1">
-        <div className="w-2 h-2 bg-red-900/50 border border-red-900/30" />
-        <span className="text-[8px] uppercase tracking-[0.25em] text-zinc-800 font-mono">Dojo day</span>
+        <div className="w-2 h-2 bg-red-950 border border-red-900/50" />
+        <span className="text-[9px] text-zinc-700 font-mono uppercase tracking-widest">Dojo day</span>
       </div>
-    </div>
-  );
-}
-
-function StatCell({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[9px] uppercase tracking-[0.3em] text-zinc-700 font-mono">{label}</span>
-      <span className="text-xl font-light text-zinc-200 tabular-nums">{value}</span>
     </div>
   );
 }
@@ -107,20 +92,17 @@ function SkillCard({ skill }: { skill: Skill }) {
 
   return (
     <Link href={`/skills/${skill.id}`} className="block group">
-      <div
-        className="relative overflow-hidden border border-zinc-900 bg-zinc-950 p-6 transition-all duration-300 ease-out hover:-translate-y-[2px] hover:border-red-950 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
-        style={{ borderRadius: "16px" }}
-      >
+      <article className="border border-zinc-900 bg-zinc-950 rounded-2xl p-6 transition-all duration-200 ease-out hover:-translate-y-[2px] hover:border-zinc-700 hover:shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
         <div className="flex items-baseline justify-between gap-4 mb-5">
-          <p className="text-sm font-light text-zinc-300 group-hover:text-zinc-100 transition-colors duration-300 leading-snug">
+          <p className="text-sm text-zinc-300 group-hover:text-zinc-100 transition-colors duration-200">
             {skill.name}
           </p>
-          <span className="text-xs font-mono text-zinc-700 shrink-0 tabular-nums">{pct}%</span>
+          <span className="text-[11px] font-mono text-zinc-600 shrink-0 tabular-nums">{pct}%</span>
         </div>
 
-        <div className="h-[1px] w-full bg-zinc-900 relative overflow-hidden">
+        <div className="h-[1px] bg-zinc-800 overflow-hidden">
           <div
-            className="absolute inset-y-0 left-0 bg-red-900 transition-all duration-700 ease-out"
+            className="h-full bg-red-900 transition-all duration-500 ease-out"
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -128,42 +110,28 @@ function SkillCard({ skill }: { skill: Skill }) {
         <div className="mt-4 flex items-center justify-between">
           <span className="text-[10px] font-mono text-zinc-700 tabular-nums">
             {skill.currentIteration.toLocaleString()}
-            <span className="text-zinc-800 mx-1.5">/</span>
+            <span className="text-zinc-800 mx-1">/</span>
             {skill.targetGoal.toLocaleString()}
           </span>
-          <span className="text-[9px] uppercase tracking-[0.2em] text-zinc-800 font-mono">reps</span>
+          <span className="text-[9px] text-zinc-800 font-mono uppercase tracking-widest">reps</span>
         </div>
-
-        <div
-          className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-          style={{
-            background: "linear-gradient(135deg, rgba(127,29,29,0.04) 0%, transparent 60%)",
-            borderRadius: "16px",
-          }}
-        />
-      </div>
+      </article>
     </Link>
   );
 }
 
-function EmptySkills({ onAdd }: { onAdd: () => void }) {
+function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div
-      className="border border-zinc-900 border-dashed p-16 text-center space-y-6"
-      style={{ borderRadius: "16px" }}
-    >
-      <div className="space-y-2">
-        <p className="text-xs font-light text-zinc-600 tracking-wide">No skills forged yet.</p>
-        <p className="text-[10px] font-mono text-zinc-800">
-          The journey of ten thousand reps begins with one.
-        </p>
-      </div>
+    <div className="border border-dashed border-zinc-900 rounded-2xl p-16 text-center space-y-5">
+      <p className="text-sm text-zinc-600">No skills recorded.</p>
+      <p className="text-[11px] text-zinc-800 font-mono max-w-[28ch] mx-auto leading-relaxed">
+        Ten thousand reps begins with naming what you intend to master.
+      </p>
       <button
         onClick={onAdd}
-        className="text-[10px] uppercase tracking-[0.25em] font-mono text-zinc-700 hover:text-zinc-400 border border-zinc-800 hover:border-zinc-600 px-5 py-2.5 transition-all duration-200"
-        style={{ borderRadius: "8px" }}
+        className="text-[11px] font-mono text-zinc-600 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600 px-5 py-2 rounded-lg transition-all duration-150"
       >
-        Begin a skill
+        Add first skill
       </button>
     </div>
   );
@@ -177,15 +145,14 @@ function AddSkillForm({
   onSubmit: () => void; onCancel: () => void;
 }) {
   return (
-    <div className="border border-zinc-800/80 bg-zinc-950 p-6 space-y-4" style={{ borderRadius: "16px" }}>
-      <p className="text-[9px] uppercase tracking-[0.3em] text-zinc-700 font-mono">New skill</p>
-      <div className="space-y-3">
+    <div className="border border-zinc-800 bg-zinc-950 rounded-2xl p-6 space-y-4">
+      <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">New skill</p>
+      <div className="space-y-2">
         <input
           value={newSkillName}
           onChange={(e) => onNameChange(e.target.value)}
           placeholder="Name your practice"
-          className="w-full bg-black border border-zinc-900 px-4 py-3 text-sm font-light text-zinc-300 placeholder:text-zinc-800 outline-none focus:border-zinc-700 transition-colors duration-200"
-          style={{ borderRadius: "10px" }}
+          className="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-200 placeholder:text-zinc-700 outline-none focus:border-zinc-600 transition-colors duration-150"
           autoFocus
         />
         <div className="flex items-center gap-3">
@@ -193,26 +160,23 @@ function AddSkillForm({
             type="number"
             value={newTargetGoal}
             onChange={(e) => onGoalChange(e.target.value)}
-            className="flex-1 bg-black border border-zinc-900 px-4 py-3 text-sm font-mono text-zinc-300 outline-none focus:border-zinc-700 transition-colors duration-200"
-            style={{ borderRadius: "10px" }}
+            className="flex-1 bg-black border border-zinc-800 rounded-lg px-4 py-3 text-sm font-mono text-zinc-200 outline-none focus:border-zinc-600 transition-colors duration-150"
           />
-          <span className="text-[10px] uppercase tracking-widest text-zinc-800 font-mono shrink-0">target reps</span>
+          <span className="text-[10px] font-mono text-zinc-700 uppercase tracking-widest shrink-0">target reps</span>
         </div>
       </div>
-      <div className="flex gap-2 pt-1">
+      <div className="flex gap-2">
         <button
           onClick={onSubmit}
-          className="flex-1 bg-red-950 hover:bg-red-900 text-red-200 hover:text-white py-2.5 text-[10px] uppercase tracking-[0.2em] font-mono border border-red-900/40 transition-all duration-200"
-          style={{ borderRadius: "8px" }}
+          className="flex-1 bg-red-950 hover:bg-red-900 text-red-300 hover:text-red-100 border border-red-900/50 py-2.5 text-[11px] font-mono uppercase tracking-widest rounded-lg transition-all duration-150"
         >
-          Forge skill
+          Create skill
         </button>
         <button
           onClick={onCancel}
-          className="flex-1 border border-zinc-900 text-zinc-700 hover:text-zinc-400 hover:border-zinc-700 py-2.5 text-[10px] uppercase tracking-[0.2em] font-mono transition-all duration-200"
-          style={{ borderRadius: "8px" }}
+          className="flex-1 border border-zinc-800 text-zinc-600 hover:text-zinc-300 hover:border-zinc-700 py-2.5 text-[11px] font-mono uppercase tracking-widest rounded-lg transition-all duration-150"
         >
-          Dismiss
+          Cancel
         </button>
       </div>
     </div>
@@ -242,12 +206,11 @@ export default function DashboardPage() {
       if (!profile) { router.push("/"); return; }
 
       const { skills: userSkills } = await loadSkills();
-      setSkills(userSkills);
-
-      const { data: repLogs } = await supabase
+      const { data: repLogs }      = await supabase
         .from("rep_logs").select("*").eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
+      setSkills(userSkills);
       setLogs(repLogs ?? []);
       setData(profile);
       setLoading(false);
@@ -280,51 +243,51 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-black">
-        <div className="flex items-center gap-3">
-          <div className="w-px h-6 bg-red-900 animate-pulse" />
-          <span className="text-[9px] uppercase tracking-[0.4em] text-zinc-700 font-mono">
-            Entering the dojo
-          </span>
+      <main className="min-h-screen bg-black flex items-center justify-center">
+        <div className="w-48 h-[1px] bg-zinc-900 relative overflow-hidden">
+          <div className="absolute inset-y-0 left-0 w-12 bg-zinc-700 animate-[shimmer_1.2s_ease-in-out_infinite]" />
         </div>
+        <style>{`@keyframes shimmer { 0% { transform: translateX(-100%) } 100% { transform: translateX(400%) } }`}</style>
       </main>
     );
   }
 
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="max-w-[1400px] mx-auto px-8 py-10 space-y-10">
+      <div className="max-w-[1280px] mx-auto px-8 py-10">
 
-        {/* HEADER */}
-        <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-8 border-b border-zinc-900">
-          <div className="flex items-center gap-5">
-            <div
-              className="w-10 h-10 bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0"
-              style={{ borderRadius: "50%" }}
-            >
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-10 mb-10 border-b border-zinc-900">
+          <div className="flex items-center gap-4">
+            <div className="w-9 h-9 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0">
               <span className="text-xs font-mono text-zinc-500">
                 {displayName.charAt(0).toUpperCase()}
               </span>
             </div>
-            <div className="space-y-0.5">
-              <h1 className="text-base font-light text-zinc-200 tracking-wide">{displayName}</h1>
-              <p className="text-[10px] font-mono text-zinc-700">@{username}</p>
+            <div>
+              <p className="text-sm text-zinc-200">{displayName}</p>
+              <p className="text-[10px] font-mono text-zinc-700 mt-0.5">@{username}</p>
             </div>
           </div>
 
-          <div className="flex items-end gap-10">
-            <StatCell label="Total Reps" value={totalReps.toLocaleString()} />
-            <div className="w-px h-8 bg-zinc-900 self-center" />
-            <StatCell label="Streak"     value={streak} />
-            <div className="w-px h-8 bg-zinc-900 self-center" />
-            <StatCell label="Skills"     value={skillCount} />
+          <div className="flex items-center gap-8">
+            {[
+              { label: "Total reps", value: totalReps.toLocaleString() },
+              { label: "Streak",     value: streak },
+              { label: "Skills",     value: skillCount },
+            ].map(({ label, value }, i, arr) => (
+              <div key={label} className="flex items-center gap-8">
+                <div className="text-right sm:text-left">
+                  <p className="text-lg font-mono text-zinc-200 tabular-nums leading-none">{value}</p>
+                  <p className="text-[9px] font-mono text-zinc-700 uppercase tracking-widest mt-1">{label}</p>
+                </div>
+                {i < arr.length - 1 && <div className="w-px h-7 bg-zinc-900" />}
+              </div>
+            ))}
           </div>
         </header>
 
-        {/* BODY */}
-        <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-10 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr] gap-12 items-start">
 
-          {/* SIDEBAR */}
           <aside className="space-y-8">
             <nav className="space-y-0.5">
               {[
@@ -334,37 +297,28 @@ export default function DashboardPage() {
                 <Link
                   key={label}
                   href={href}
-                  className="flex items-center gap-3 px-3 py-2 text-[10px] uppercase tracking-[0.25em] font-mono text-zinc-700 hover:text-zinc-300 hover:bg-zinc-950 transition-all duration-150 group"
-                  style={{ borderRadius: "8px" }}
+                  className="block px-3 py-2 rounded-lg text-[11px] font-mono text-zinc-600 hover:text-zinc-200 hover:bg-zinc-950 transition-all duration-150"
                 >
-                  <span className="w-[2px] h-3 bg-transparent group-hover:bg-red-900 transition-colors duration-150 shrink-0" />
                   {label}
                 </Link>
               ))}
             </nav>
 
-            <div className="w-full h-px bg-zinc-900" />
-            <DojoMonthCalendar logs={logs} />
+            <div className="h-px bg-zinc-900" />
+            <DojoCalendar logs={logs} />
           </aside>
 
-          {/* MAIN */}
-          <section className="space-y-6">
+          <section className="space-y-5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-[2px] h-4 bg-red-900" />
-                <span className="text-[9px] uppercase tracking-[0.35em] text-zinc-600 font-mono">
-                  Active skills
-                </span>
-              </div>
+              <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Skills</p>
               <div className="flex items-center gap-4">
-                <span className="text-[9px] font-mono text-zinc-800">{todayLabel}</span>
+                <p className="text-[10px] font-mono text-zinc-800">{todayLabel}</p>
                 {skills.length < maxAllowedSkills && (
                   <button
                     onClick={() => setShowForm((v) => !v)}
-                    className="text-[9px] uppercase tracking-[0.25em] font-mono text-zinc-700 hover:text-zinc-400 border border-zinc-900 hover:border-zinc-700 px-3 py-1.5 transition-all duration-200"
-                    style={{ borderRadius: "6px" }}
+                    className="text-[10px] font-mono text-zinc-600 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600 px-3 py-1.5 rounded-md transition-all duration-150"
                   >
-                    {showForm ? "— cancel" : "+ new skill"}
+                    {showForm ? "Cancel" : "+ New skill"}
                   </button>
                 )}
               </div>
@@ -377,12 +331,16 @@ export default function DashboardPage() {
                 onNameChange={setNewSkillName}
                 onGoalChange={setNewTargetGoal}
                 onSubmit={handleCreate}
-                onCancel={() => { setShowForm(false); setNewSkillName(""); setNewTargetGoal("10000"); }}
+                onCancel={() => {
+                  setShowForm(false);
+                  setNewSkillName("");
+                  setNewTargetGoal("10000");
+                }}
               />
             )}
 
             {skills.length === 0 && !showForm
-              ? <EmptySkills onAdd={() => setShowForm(true)} />
+              ? <EmptyState onAdd={() => setShowForm(true)} />
               : (
                 <div className="space-y-3">
                   {skills.map((skill) => <SkillCard key={skill.id} skill={skill} />)}
@@ -391,7 +349,6 @@ export default function DashboardPage() {
             }
           </section>
         </div>
-
       </div>
     </main>
   );
