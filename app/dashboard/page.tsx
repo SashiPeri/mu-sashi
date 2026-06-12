@@ -15,126 +15,71 @@ function getDateKey(date: Date) {
     String(date.getDate()).padStart(2, "0"),
   ].join("-");
 }
-
-function MasteryRing({ pct }: { pct: number }) {
-  const r    = 72;
-  const circ = 2 * Math.PI * r;
-  const fill = circ * (pct / 100);
-
-  return (
-    <div className="relative flex items-center justify-center w-48 h-48 mx-auto">
-      <svg
-        viewBox="0 0 160 160"
-        className="w-full h-full -rotate-90"
-        aria-label={`${pct}% mastery`}
-      >
-        <circle cx="80" cy="80" r={r} fill="none" stroke="#1c1c1c" strokeWidth="1.5" />
-        <circle
-          cx="80" cy="80" r={r}
-          fill="none" stroke="#6b6b6b" strokeWidth="1.5"
-          strokeLinecap="butt"
-          strokeDasharray={`${fill} ${circ}`}
-          style={{ transition: "stroke-dasharray 0.8s ease-out" }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-4xl font-mono text-zinc-200 tabular-nums leading-none">{pct}</span>
-        <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-[0.2em] mt-1.5">Mastery</span>
-      </div>
-    </div>
-  );
+function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+function endOfMonth(d: Date)   { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
+function addMonths(d: Date, n: number) { return new Date(d.getFullYear(), d.getMonth() + n, 1); }
+function getMonthGrid(date: Date): (string | null)[] {
+  const start = startOfMonth(date);
+  const end   = endOfMonth(date);
+  const cells: (string | null)[] = Array(start.getDay()).fill(null);
+  for (let d = 1; d <= end.getDate(); d++)
+    cells.push(getDateKey(new Date(date.getFullYear(), date.getMonth(), d)));
+  return cells;
 }
 
-function ActivityHeatmap({ logs }: { logs: RepLogEntry[] }) {
-  const repsByDay = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const log of logs) {
-      const key = getDateKey(new Date(log.created_at));
-      map[key] = (map[key] ?? 0) + 1;
-    }
-    return map;
-  }, [logs]);
-
-  const { weeks, colLabels } = useMemo(() => {
-    const today    = new Date();
-    const todayK   = getDateKey(today);
-    const dayOfWeek = today.getDay();
-    const daysToSat = (6 - dayOfWeek + 7) % 7;
-    const lastSat   = new Date(today);
-    lastSat.setDate(today.getDate() + daysToSat);
-
-    const weeksArr: ({ key: string; isToday: boolean } | null)[][] = [];
-    const colLbls: string[] = [];
-
-    for (let w = 15; w >= 0; w--) {
-      const week: ({ key: string; isToday: boolean } | null)[] = [];
-      for (let d = 0; d < 7; d++) {
-        const date = new Date(lastSat);
-        date.setDate(lastSat.getDate() - (w * 7 + (6 - d)));
-        const key = getDateKey(date);
-        week.push(date > today ? null : { key, isToday: key === todayK });
-      }
-      weeksArr.push(week);
-      colLbls.push(String(16 - w));
-    }
-
-    return { weeks: weeksArr, colLabels: colLbls };
-  }, []);
-
-  const maxReps = useMemo(() => {
-    const vals = Object.values(repsByDay);
-    return vals.length ? Math.max(...vals) : 1;
-  }, [repsByDay]);
-
-  function intensityClass(key: string): string {
-    const count = repsByDay[key] ?? 0;
-    if (count === 0) return "bg-[#111] border border-[#1a1a1a]";
-    const ratio = count / maxReps;
-    if (ratio < 0.2)  return "bg-zinc-800";
-    if (ratio < 0.4)  return "bg-zinc-700";
-    if (ratio < 0.65) return "bg-zinc-600";
-    if (ratio < 0.85) return "bg-zinc-500";
-    return "bg-zinc-300";
-  }
-
-  const rowLabels = ["M", "", "W", "", "F", "", "S"];
+function DojoCalendar({ logs }: { logs: RepLogEntry[] }) {
+  const [current, setCurrent] = useState(new Date());
+  const activeDays = useMemo(
+    () => new Set(logs.map((l) => getDateKey(new Date(l.created_at)))),
+    [logs]
+  );
+  const grid  = useMemo(() => getMonthGrid(current), [current]);
+  const label = current.toLocaleString("default", { month: "long", year: "numeric" });
 
   return (
-    <div className="space-y-3">
-      <div className="flex ml-5">
-        {colLabels.map((l, i) => (
-          <div key={i} className="flex-1 text-center text-[8px] font-mono text-zinc-700">{l}</div>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => setCurrent((d) => addMonths(d, -1))}
+          aria-label="Previous month"
+          className="w-5 h-5 flex items-center justify-center text-zinc-700 hover:text-zinc-400 transition-colors duration-150"
+        >‹</button>
+        <span className="text-[9px] text-zinc-600 tracking-widest uppercase font-mono">{label}</span>
+        <button
+          onClick={() => setCurrent((d) => addMonths(d, 1))}
+          aria-label="Next month"
+          className="w-5 h-5 flex items-center justify-center text-zinc-700 hover:text-zinc-400 transition-colors duration-150"
+        >›</button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-px">
+        {["S","M","T","W","T","F","S"].map((d, i) => (
+          <div key={i} className="text-center text-[8px] text-zinc-800 font-mono">{d}</div>
         ))}
       </div>
 
-      <div className="flex gap-[2px]">
-        <div className="flex flex-col gap-[2px] mr-1.5">
-          {rowLabels.map((l, i) => (
-            <div key={i} className="h-3.5 flex items-center">
-              <span className="text-[8px] font-mono text-zinc-700 w-3">{l}</span>
-            </div>
-          ))}
-        </div>
-
-        {weeks.map((week, wi) => (
-          <div key={wi} className="flex flex-col gap-[2px] flex-1">
-            {week.map((cell, di) => (
-              <div
-                key={di}
-                title={cell ? `${cell.key}: ${repsByDay[cell.key] ?? 0} reps` : undefined}
-                className={["h-3.5 w-full", cell ? intensityClass(cell.key) : "bg-transparent"].join(" ")}
-              />
-            ))}
-          </div>
-        ))}
+      <div className="grid grid-cols-7 gap-px">
+        {grid.map((day, i) => {
+          if (!day) return <div key={i} />;
+          const active = activeDays.has(day);
+          return (
+            <div
+              key={day}
+              title={day}
+              className={[
+                "aspect-square",
+                active
+                  ? "bg-red-950 border border-red-900/50"
+                  : "bg-zinc-950 border border-zinc-900",
+              ].join(" ")}
+            />
+          );
+        })}
       </div>
 
-      <div className="flex items-center gap-2 ml-5 mt-1">
-        <span className="text-[8px] font-mono text-zinc-700">less</span>
-        {["bg-[#111] border border-[#1a1a1a]", "bg-zinc-800", "bg-zinc-700", "bg-zinc-600", "bg-zinc-300"].map((cls, i) => (
-          <div key={i} className={`w-3 h-3 ${cls}`} />
-        ))}
-        <span className="text-[8px] font-mono text-zinc-700">more</span>
+      <div className="flex items-center gap-1.5">
+        <div className="w-1.5 h-1.5 bg-red-950 border border-red-900/50" />
+        <span className="text-[8px] text-zinc-700 font-mono uppercase tracking-widest">Dojo day</span>
       </div>
     </div>
   );
@@ -147,26 +92,41 @@ function SkillCard({ skill }: { skill: Skill }) {
 
   return (
     <Link href={`/skills/${skill.id}`} className="block group">
-      <article className="border-r border-zinc-800/60 pr-8 last:border-r-0 last:pr-0 transition-all duration-150">
-        <div className="flex items-baseline justify-between gap-2 mb-3">
-          <p className="text-lg text-zinc-200 group-hover:text-white transition-colors duration-150 leading-tight">
+      <article className="border border-zinc-800 bg-zinc-950 rounded px-4 py-3 transition-all duration-150 hover:border-zinc-700">
+        <div className="flex items-baseline justify-between gap-2 mb-0.5">
+          <p className="text-[11px] text-zinc-500 group-hover:text-zinc-300 transition-colors duration-150 truncate flex-1 mr-2 font-mono uppercase tracking-widest">
             {skill.name}
           </p>
-          <span className="text-2xl font-mono text-zinc-300 tabular-nums shrink-0">{pct}</span>
+          <span className="text-[9px] font-mono text-zinc-700 shrink-0 tabular-nums">{pct}%</span>
         </div>
-
-        <div className="h-[1px] bg-zinc-800 overflow-hidden mb-3">
-          <div
-            className="h-full bg-zinc-500 transition-all duration-500 ease-out"
-            style={{ width: `${pct}%` }}
-          />
+        <div className="flex items-baseline gap-1">
+          <span className="text-sm font-mono text-zinc-200 tabular-nums">
+            {skill.currentIteration.toLocaleString()}
+          </span>
+          <span className="text-[10px] font-mono text-zinc-600">/</span>
+          <span className="text-[10px] font-mono text-zinc-600 tabular-nums">
+            {skill.targetGoal.toLocaleString()}
+          </span>
         </div>
-
-        <p className="text-[11px] font-mono text-zinc-600 tabular-nums">
-          {skill.currentIteration.toLocaleString()} / {skill.targetGoal.toLocaleString()}
-        </p>
       </article>
     </Link>
+  );
+}
+
+function EmptyState({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="border border-dashed border-zinc-900 rounded-2xl p-16 text-center space-y-5">
+      <p className="text-sm text-zinc-600">No skills recorded.</p>
+      <p className="text-[11px] text-zinc-800 font-mono max-w-[28ch] mx-auto leading-relaxed">
+        Ten thousand reps begins with naming what you intend to master.
+      </p>
+      <button
+        onClick={onAdd}
+        className="text-[11px] font-mono text-zinc-600 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600 px-5 py-2 rounded-lg transition-all duration-150"
+      >
+        Add first skill
+      </button>
+    </div>
   );
 }
 
@@ -178,33 +138,36 @@ function AddSkillForm({
   onSubmit: () => void; onCancel: () => void;
 }) {
   return (
-    <div className="space-y-2">
-      <input
-        value={newSkillName}
-        onChange={(e) => onNameChange(e.target.value)}
-        placeholder="Skill name"
-        className="w-full bg-transparent border-b border-zinc-800 focus:border-zinc-600 px-0 py-1.5 text-sm text-zinc-200 placeholder:text-zinc-700 outline-none transition-colors duration-150"
-        autoFocus
-      />
-      <div className="flex items-center gap-2">
+    <div className="border border-zinc-800 bg-zinc-950 rounded-2xl p-6 space-y-4">
+      <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">New skill</p>
+      <div className="space-y-2">
         <input
-          type="number"
-          value={newTargetGoal}
-          onChange={(e) => onGoalChange(e.target.value)}
-          className="flex-1 bg-transparent border-b border-zinc-800 focus:border-zinc-600 px-0 py-1.5 text-sm font-mono text-zinc-200 outline-none transition-colors duration-150"
+          value={newSkillName}
+          onChange={(e) => onNameChange(e.target.value)}
+          placeholder="Name your practice"
+          className="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-200 placeholder:text-zinc-700 outline-none focus:border-zinc-600 transition-colors duration-150"
+          autoFocus
         />
-        <span className="text-[9px] font-mono text-zinc-700 uppercase tracking-widest shrink-0">reps</span>
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            value={newTargetGoal}
+            onChange={(e) => onGoalChange(e.target.value)}
+            className="flex-1 bg-black border border-zinc-800 rounded-lg px-4 py-3 text-sm font-mono text-zinc-200 outline-none focus:border-zinc-600 transition-colors duration-150"
+          />
+          <span className="text-[10px] font-mono text-zinc-700 uppercase tracking-widest shrink-0">target reps</span>
+        </div>
       </div>
-      <div className="flex gap-3 pt-1">
+      <div className="flex gap-2">
         <button
           onClick={onSubmit}
-          className="text-[10px] font-mono text-red-700 hover:text-red-400 uppercase tracking-widest transition-colors duration-150"
+          className="flex-1 bg-red-950 hover:bg-red-900 text-red-300 hover:text-red-100 border border-red-900/50 py-2.5 text-[11px] font-mono uppercase tracking-widest rounded-lg transition-all duration-150"
         >
-          Create
+          Create skill
         </button>
         <button
           onClick={onCancel}
-          className="text-[10px] font-mono text-zinc-700 hover:text-zinc-400 uppercase tracking-widest transition-colors duration-150"
+          className="flex-1 border border-zinc-800 text-zinc-600 hover:text-zinc-300 hover:border-zinc-700 py-2.5 text-[11px] font-mono uppercase tracking-widest rounded-lg transition-all duration-150"
         >
           Cancel
         </button>
@@ -213,24 +176,16 @@ function AddSkillForm({
   );
 }
 
-function EmptySkills({ onAdd }: { onAdd: () => void }) {
-  return (
-    <div className="py-12 text-center">
-      <p className="text-sm text-zinc-700 mb-4">No skills yet.</p>
-      <button
-        onClick={onAdd}
-        className="text-[10px] font-mono text-zinc-600 hover:text-zinc-300 uppercase tracking-widest transition-colors duration-150"
-      >
-        + Add skill
-      </button>
-    </div>
-  );
-}
-
 export default function DashboardPage() {
   const router = useRouter();
 
-  const [data,          setData]          = useState<any>(null);
+  type SupabaseProfile = {
+    display_name: string;
+    username: string;
+    streak: number;
+  };
+
+  const [data,          setData]          = useState<SupabaseProfile | null>(null);
   const [skills,        setSkills]        = useState<Skill[]>([]);
   const [logs,          setLogs]          = useState<RepLogEntry[]>([]);
   const [loading,       setLoading]       = useState(true);
@@ -281,24 +236,15 @@ export default function DashboardPage() {
   const streak           = data?.streak       ?? 0;
   const skillCount       = skills.length;
   const maxAllowedSkills = 3 + skills.filter(s => s.currentIteration >= 6000).length;
-
-  const masteryPct = useMemo(() => {
-    if (!skills.length) return 0;
-    const avg = skills.reduce((sum, s) => {
-      return sum + (s.targetGoal > 0 ? Math.min(100, (s.currentIteration / s.targetGoal) * 100) : 0);
-    }, 0) / skills.length;
-    return Math.round(avg);
-  }, [skills]);
-
-  const todayLabel = new Date().toLocaleDateString("en-US", {
-    weekday: "long", month: "long", day: "numeric", year: "numeric",
+  const todayLabel       = new Date().toLocaleDateString("default", {
+    weekday: "long", month: "long", day: "numeric",
   });
 
   if (loading) {
     return (
       <main className="min-h-screen bg-black flex items-center justify-center">
         <div className="w-48 h-[1px] bg-zinc-900 relative overflow-hidden">
-          <div className="absolute inset-y-0 left-0 w-12 bg-zinc-800 animate-[shimmer_1.2s_ease-in-out_infinite]" />
+          <div className="absolute inset-y-0 left-0 w-12 bg-zinc-700 animate-[shimmer_1.2s_ease-in-out_infinite]" />
         </div>
         <style>{`@keyframes shimmer { 0% { transform: translateX(-100%) } 100% { transform: translateX(400%) } }`}</style>
       </main>
@@ -306,92 +252,109 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white flex">
+    <main className="min-h-screen bg-black text-white">
+      <div className="max-w-[1280px] mx-auto px-8 py-10">
 
-      {/* SIDEBAR */}
-      <aside className="w-[330px] shrink-0 min-h-screen bg-[#0a0a0a] border-r border-zinc-900 flex flex-col px-8 py-10">
-
-        <div className="mb-8">
-          <h1 className="text-2xl text-zinc-100 leading-tight">{displayName}</h1>
-          <p className="text-[11px] font-mono text-zinc-600 mt-1">@{username}</p>
-        </div>
-
-        <div className="mb-10">
-          <MasteryRing pct={masteryPct} />
-        </div>
-
-        <div className="space-y-6 mb-auto">
-          <div className="border-t border-zinc-900 pt-6">
-            <p className="text-[9px] font-mono text-zinc-700 uppercase tracking-widest mb-1">Total Reps</p>
-            <p className="text-3xl font-mono text-zinc-200 tabular-nums">{totalReps.toLocaleString()}</p>
+        {/* Header - matches design/dashboard.png */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-8 mb-8 border-b border-zinc-900">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0">
+              <span className="text-xs font-mono text-zinc-400">
+                {displayName.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest mb-px">Practitioner</p>
+              <p className="text-sm font-mono text-zinc-300">{displayName}</p>
+            </div>
           </div>
-          <div className="border-t border-zinc-900 pt-6">
-            <p className="text-[9px] font-mono text-zinc-700 uppercase tracking-widest mb-1">Day Streak</p>
-            <p className="text-3xl font-mono text-zinc-200 tabular-nums">{streak}</p>
+
+          <div className="flex items-center gap-6">
+            {[
+              { label: "Total Reps", value: totalReps.toLocaleString() },
+              { label: "Streak", value: streak },
+              { label: "Skills", value: skillCount },
+            ].map(({ label, value }, i, arr) => (
+              <div key={label} className="flex items-center gap-6">
+                <div className="text-right sm:text-left">
+                  <p className="text-base font-mono text-zinc-200 tabular-nums leading-none">{value}</p>
+                  <p className="text-[9px] font-mono text-zinc-700 uppercase tracking-widest mt-0.5">{label}</p>
+                </div>
+                {i < arr.length - 1 && <div className="w-px h-6 bg-zinc-800" />}
+              </div>
+            ))}
           </div>
-          <div className="border-t border-zinc-900 pt-6">
-            <p className="text-[9px] font-mono text-zinc-700 uppercase tracking-widest mb-1">Skills</p>
-            <p className="text-3xl font-mono text-zinc-200 tabular-nums">{skillCount} / {maxAllowedSkills}</p>
+        </header>
+
+        {/* Skills Section - matches design/dashboard.png */}
+        <section className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[9px] font-mono text-zinc-700 uppercase tracking-widest">Skills</p>
+            <div className="flex items-center gap-3">
+              <p className="text-[9px] font-mono text-zinc-800">{todayLabel}</p>
+              {skills.length < maxAllowedSkills && (
+                <button
+                  onClick={() => setShowForm((v) => !v)}
+                  className="text-[9px] font-mono text-zinc-600 hover:text-zinc-400 border border-zinc-800 hover:border-zinc-700 px-2 py-1 rounded transition-all duration-150"
+                >
+                  {showForm ? "Cancel" : "+ New skill"}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
 
-        <div className="border-t border-zinc-900 pt-6 mt-8">
-          {showForm ? (
-            <AddSkillForm
-              newSkillName={newSkillName}
-              newTargetGoal={newTargetGoal}
-              onNameChange={setNewSkillName}
-              onGoalChange={setNewTargetGoal}
-              onSubmit={handleCreate}
-              onCancel={() => { setShowForm(false); setNewSkillName(""); setNewTargetGoal("10000"); }}
-            />
-          ) : (
-            skills.length < maxAllowedSkills && (
-              <button
-                onClick={() => setShowForm(true)}
-                className="flex items-center gap-2 text-[10px] font-mono text-red-700 hover:text-red-400 uppercase tracking-widest transition-colors duration-150"
-              >
-                <span className="text-base leading-none">+</span>
-                <span>Add skill</span>
-              </button>
-            )
-          )}
-        </div>
-
-      </aside>
-
-      {/* CONTENT */}
-      <div className="flex-1 min-h-screen flex flex-col px-10 py-10 overflow-auto">
-
-        <div className="flex items-start justify-between mb-10">
-          <p className="text-[9px] font-mono text-zinc-700 uppercase tracking-widest">Dashboard</p>
-          <p className="text-[11px] font-mono text-zinc-600">{todayLabel}</p>
-        </div>
-
-        <section className="mb-14">
-          <p className="text-[9px] font-mono text-zinc-700 uppercase tracking-widest mb-6">Skills</p>
-          {skills.length === 0 ? (
-            <EmptySkills onAdd={() => setShowForm(true)} />
-          ) : (
-            <div className={`grid gap-0 ${
-              skills.length === 1 ? "grid-cols-1" :
-              skills.length === 2 ? "grid-cols-2" :
-              "grid-cols-3"
-            }`}>
-              {skills.map((skill) => <SkillCard key={skill.id} skill={skill} />)}
+          {showForm && (
+            <div className="mb-3">
+              <AddSkillForm
+                newSkillName={newSkillName}
+                newTargetGoal={newTargetGoal}
+                onNameChange={setNewSkillName}
+                onGoalChange={setNewTargetGoal}
+                onSubmit={handleCreate}
+                onCancel={() => {
+                  setShowForm(false);
+                  setNewSkillName("");
+                  setNewTargetGoal("10000");
+                }}
+              />
             </div>
           )}
+
+          {skills.length === 0 && !showForm
+            ? <EmptyState onAdd={() => setShowForm(true)} />
+            : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {skills.map((skill) => <SkillCard key={skill.id} skill={skill} />)}
+              </div>
+            )
+          }
         </section>
 
-        <section>
-          <p className="text-[9px] font-mono text-zinc-700 uppercase tracking-widest mb-6">
-            Activity — 16 weeks
-          </p>
-          <ActivityHeatmap logs={logs} />
-        </section>
+        {/* Calendar Section - matches design/dashboard.png */}
+        <div className="grid grid-cols-1 lg:grid-cols-[100px_1fr] gap-6 items-start">
+          <aside className="space-y-4">
+            <nav className="space-y-0.5">
+              {[
+                { label: "Practice", href: "/dashboard" },
+                { label: "Profile",  href: "/profile"   },
+              ].map(({ label, href }) => (
+                <Link
+                  key={label}
+                  href={href}
+                  className="block px-2 py-1.5 text-[10px] font-mono text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900 rounded transition-all duration-150"
+                >
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          </aside>
 
+          <div className="lg:pl-0">
+            <div className="h-px bg-zinc-900 mb-4 lg:hidden" />
+            <DojoCalendar logs={logs} />
+          </div>
+        </div>
       </div>
-
     </main>
   );
 }
